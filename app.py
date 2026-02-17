@@ -13,7 +13,7 @@ if 'history' not in st.session_state:
 if 'my_habits' not in st.session_state:
     st.session_state.my_habits = ["📚 Kitap Okumak", "💪 Spor Yapmak", "💧 Su İçmek"]
 
-# --- YAN MENÜ (AYARLAR) ---
+# --- YAN MENÜ (ALIŞKANLIK YÖNETİMİ) ---
 with st.sidebar:
     st.header("⚙️ Ayarlar")
     yeni_aliskanlik = st.text_input("Yeni Alışkanlık Ekle:")
@@ -23,9 +23,11 @@ with st.sidebar:
             st.rerun()
     
     st.write("---")
-    st.write("🗑️ Alışkanlık Sil:")
+    st.write("🗑️ Mevcut Alışkanlıkların:")
     for h in st.session_state.my_habits:
-        if st.button(f"Sil: {h}", key=h):
+        col_h, col_b = st.columns([3, 1])
+        col_h.write(h)
+        if col_b.button("Sil", key=f"del_{h}"):
             st.session_state.my_habits.remove(h)
             st.rerun()
 
@@ -33,17 +35,17 @@ with st.sidebar:
 st.title("🚀 Atomik Gelişim Pro")
 st.write(f"📅 Bugün: **{datetime.now().strftime('%d %B %Y')}**")
 
-# Alışkanlık Seçimi
+# Alışkanlık Listesi (Tikleme Alanı)
 st.subheader("Bugünkü Görevlerin")
 check_list = {}
 for habit in st.session_state.my_habits:
-    check_list[habit] = st.checkbox(habit)
+    check_list[habit] = st.checkbox(habit, key=f"check_{habit}")
 
 tamamlanan = sum(check_list.values())
 toplam = len(st.session_state.my_habits)
 oran = tamamlanan / toplam if toplam > 0 else 0
 
-# Kaydetme ve Geri Alma Butonları
+# Kaydetme ve Geri Alma Alanı
 col_save, col_undo = st.columns([3, 1])
 
 with col_save:
@@ -54,7 +56,38 @@ with col_save:
         yeni_deger = onceki_deger * 1.01 if oran == 1.0 else onceki_deger
         
         yeni_veri = pd.DataFrame({
-            "T
-            "
+            "Tarih": [datetime.now().strftime("%d/%m")],
+            "Gün": [yeni_gun_no],
+            "Puan": [int(oran*100)],
+            "Bileşik_Büyüme": [yeni_deger]
+        })
+        st.session_state.history = pd.concat([st.session_state.history, yeni_veri], ignore_index=True)
+        if oran == 1.0: st.balloons()
+
+with col_undo:
+    if st.button("🔄 Geri Al", help="Son kaydı siler"):
+        if not st.session_state.history.empty:
+            st.session_state.history = st.session_state.history[:-1]
+            st.rerun()
+
+# --- HAFTALIK ÖZET VE GRAFİK ---
+if not st.session_state.history.empty:
+    st.divider()
+    
+    # Haftalık Özet Tablosu
+    st.subheader("📅 Son Kayıtlar")
+    # Tabloyu daha şık gösterelim
+    tablo_df = st.session_state.history.tail(7)[["Tarih", "Puan"]].copy()
+    tablo_df["Puan"] = tablo_df["Puan"].apply(lambda x: f"%{x}")
+    st.dataframe(tablo_df.set_index("Tarih").T, use_container_width=True)
+
+    # Gelişim Grafiği
+    st.subheader("📈 Gelişim Grafiği")
+    fig = px.area(st.session_state.history, x="Gün", y="Bileşik_Büyüme", 
+                  title="Bileşik Büyüme (Hedef: %1)")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Henüz veri kaydedilmemiş. İlk gününü tamamla ve 'Günü Kaydet' butonuna bas!")
+
 
 
