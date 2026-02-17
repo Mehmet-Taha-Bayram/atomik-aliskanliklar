@@ -55,5 +55,6 @@ with col_save:
         
         yeni_veri = pd.DataFrame({
             "T
+            "
 
 
