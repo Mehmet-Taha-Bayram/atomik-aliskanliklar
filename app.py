@@ -1,122 +1,95 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import datetime
 
 # Sayfa Ayarları
-st.set_page_config(page_title="Solo Leveling: Atomic Progress", page_icon="🗡️", layout="centered")
+st.set_page_config(page_title="Gelişim Günlüğü", page_icon="📈", layout="wide")
 
-# --- SOLO LEVELING STİLİ ---
+# --- STİL ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; color: #e0e0e0; }
-    .stCheckbox { background: #1a1c23; border: 1px solid #4a90e2; border-radius: 5px; padding: 10px; }
-    .level-box { border: 2px solid #4a90e2; padding: 20px; border-radius: 15px; text-align: center; background: linear-gradient(45deg, #12141d, #1a1c23); }
+    .main { background-color: #f8f9fa; }
+    .stTextArea textarea { border-radius: 10px; }
+    .stTextInput input { border-radius: 10px; }
+    .habit-box { background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     </style>
     """, unsafe_allow_html=True)
 
 # --- VERİ SİSTEMİ ---
 if 'history' not in st.session_state:
-    st.session_state.history = pd.DataFrame(columns=["Tarih", "Gün", "XP", "Bileşik_Büyüme"])
+    st.session_state.history = []
 
-if 'my_habits' not in st.session_state:
-    st.session_state.my_habits = ["📚 Günlük Okuma", "💪 Antrenman", "💧 Hidrasyon"]
+if 'habits' not in st.session_state:
+    st.session_state.habits = ["📚 Kitap Okuma", "💪 Spor", "💧 Su İçmek"]
 
-# --- OYUN MANTIĞI (LEVEL & RANK) ---
-total_xp = st.session_state.history["XP"].sum() if not st.session_state.history.empty else 0
-level = int((total_xp / 100) ** 0.5) + 1
-rank = "E-Rank"
-if level > 5: rank = "D-Rank"
-if level > 10: rank = "C-Rank"
-if level > 20: rank = "B-Rank"
-if level > 40: rank = "A-Rank"
-if level > 80: rank = "S-Rank"
+if 'bad_habits' not in st.session_state:
+    st.session_state.bad_habits = ["🚬 Sigara", "📱 Gereksiz Sosyal Medya"]
 
-# --- ÜST PANEL (STATÜ) ---
-st.title("🗡️ SYSTEM: DAILY QUEST")
-st.markdown(f"""
-<div class="level-box">
-    <h2 style='color: #4a90e2;'>{rank} Avcı: Taha</h2>
-    <p style='font-size: 24px;'><b>LEVEL: {level}</b></p>
-    <p>Toplam Tecrübe (XP): {total_xp:.0f}</p>
-</div>
-""", unsafe_allow_html=True)
+# --- ANA BAŞLIK ---
+st.title("📈 Kişisel Gelişim ve Alışkanlık Günlüğü")
+st.write(f"📅 **{datetime.now().strftime('%d %B %Y, %A')}**")
 
-# --- GÜNLÜK GÖREVLER ---
-st.subheader("📝 Günlük Görev Listesi")
-check_list = {}
-for habit in st.session_state.my_habits:
-    check_list[habit] = st.checkbox(habit, key=f"quest_{habit}")
+col1, col2 = st.columns([1, 1], gap="large")
 
-tamamlanan = sum(check_list.values())
-toplam = len(st.session_state.my_habits)
-gunluk_basari_orani = tamamlanan / toplam if toplam > 0 else 0
+with col1:
+    st.subheader("✅ Kazanmak İstediğim Alışkanlıklar")
+    good_results = {}
+    for h in st.session_state.habits:
+        good_results[h] = st.checkbox(h, key=f"good_{h}")
 
-# --- BUTONLAR ---
-col_save, col_undo, col_export = st.columns([2, 1, 1])
-
-with col_save:
-    if st.button("⚔️ GÖREVİ TAMAMLA", use_container_width=True):
-        yeni_gun_no = len(st.session_state.history) + 1
-        onceki_buyume = st.session_state.history["Bileşik_Büyüme"].iloc[-1] if yeni_gun_no > 1 else 1.0
-        
-        # XP Hesaplama: Her tamamlanan görev 10 XP, hepsi biterse +50 bonus
-        kazanilan_xp = (tamamlanan * 10) + (50 if gunluk_basari_orani == 1.0 else 0)
-        yeni_buyume = onceki_buyume * 1.01 if gunluk_basari_orani == 1.0 else onceki_buyume
-        
-        yeni_veri = pd.DataFrame({
-            "Tarih": [datetime.now().strftime("%Y-%m-%d")],
-            "Gün": [yeni_gun_no],
-            "XP": [kazanilan_xp],
-            "Bileşik_Büyüme": [yeni_buyume]
-        })
-        st.session_state.history = pd.concat([st.session_state.history, yeni_veri], ignore_index=True)
-        if gunluk_basari_orani == 1.0:
-            st.toast("SEVİYE ATLANDI! (Veya XP Kazanıldı)", icon='🔥')
-
-with col_undo:
-    if st.button("🔄 GERİ AL"):
-        if not st.session_state.history.empty:
-            st.session_state.history = st.session_state.history[:-1]
-            st.rerun()
-
-with col_export:
-    # Verileri yedeklemek için CSV olarak indir
-    if not st.session_state.history.empty:
-        csv = st.session_state.history.to_csv(index=False).encode('utf-8')
-        st.download_button("💾 YEDEKLE", data=csv, file_name="solo_leveling_data.csv", mime="text/csv")
-
-# --- TAKVİM VE ANALİZ ---
-if not st.session_state.history.empty:
-    st.divider()
-    
-    # Isı Haritası Mantığında Haftalık Tablo
-    st.subheader("📅 Görev Geçmişi")
-    hist_view = st.session_state.history.tail(7).copy()
-    st.dataframe(hist_view.set_index("Tarih")[["XP"]].T, use_container_width=True)
-
-    # Gelişim Grafiği
-    st.subheader("📈 Güç Artışı (Bileşik Etki)")
-    fig = px.line(st.session_state.history, x="Tarih", y="Bileşik_Büyüme", 
-                  template="plotly_dark", line_shape="spline")
-    fig.update_traces(line_color='#4a90e2')
-    st.plotly_chart(fig, use_container_width=True)
-
-# --- AYARLAR (SOL MENÜ) ---
-with st.sidebar:
-    st.header("⚙️ SİSTEM AYARLARI")
-    yeni = st.text_input("Yeni Görev Ekle:")
-    if st.button("Sisteme Kaydet"):
-        if yeni:
-            st.session_state.my_habits.append(yeni)
-            st.rerun()
-    
     st.write("---")
-    st.write("🗑️ Görev Sil:")
-    for h in st.session_state.my_habits:
-        if st.button(f"Sil: {h}"):
-            st.session_state.my_habits.remove(h)
-            st.rerun()
+    st.subheader("🚫 Bırakmak İstediğim Alışkanlıklar")
+    st.info("Bu kutucukları işaretlemediysen başarılısın demektir!")
+    bad_results = {}
+    for bh in st.session_state.bad_habits:
+        bad_results[bh] = st.checkbox(f"Bugün bunu yaptım: {bh}", key=f"bad_{bh}")
+
+with col2:
+    st.subheader("📝 Günlük Notlar & Değerlendirme")
+    
+    st.write("**🌟 Bugün memnun olduğum 3 şey:**")
+    m1 = st.text_input("1.", key="m1", placeholder="Örn: Erken uyandım")
+    m2 = st.text_input("2.", key="m2")
+    m3 = st.text_input("3.", key="m3")
+    
+    st.write("**💡 Daha iyi yapabileceğim 3 şey:**")
+    d1 = st.text_input("1.", key="d1", placeholder="Örn: Tatlı yemeseydim iyiydi")
+    d2 = st.text_input("2.", key="d2")
+    d3 = st.text_input("3.", key="d3")
+    
+    extra_note = st.text_area("🗒️ Ekstra Notlar", placeholder="Bugün nasıl geçti?")
+
+# --- KAYDETME ---
+st.write("---")
+if st.button("🚀 GÜNÜ SİSTEME KAYDET", use_container_width=True):
+    entry = {
+        "tarih": datetime.now().strftime("%Y-%m-%d"),
+        "iyi_aliskanliklar": sum(good_results.values()),
+        "kotu_aliskanliklar": sum(bad_results.values()),
+        "notlar": extra_note,
+        "memnuniyet": [m1, m2, m3],
+        "gelisim": [d1, d2, d3]
+    }
+    st.session_state.history.append(entry)
+    st.balloons()
+    st.success("Harika! Günlük verilerin kaydedildi.")
+
+# --- GEÇMİŞ VE AYARLAR ---
+st.divider()
+tab1, tab2 = st.tabs(["📊 Geçmiş Kayıtlar", "⚙️ Alışkanlık Yönetimi"])
+
+with tab1:
+    if st.session_state.history:
+        for item in reversed(st.session_state.history):
+            with st.expander(f"📅 Kayıt: {item['tarih']}"):
+                c_a, c_b = st.columns(2)
+                with c_a:
+                    st.write(f"✅ Kazanılan: {item['iyi_aliskanliklar']}/{len(st.session_state.habits)}")
+                    st.write(f"🚫 Kaçınılan Kötü Alışkanlıklar: {len(st.session_state.bad_habits) - item['kotu_aliskanliklar']}")
+                with c_b:
+                    st.write("**🌟 Memnuniyet:** " + ", ".join([x for x in item['memnuniyet'] if x]))
+                    st
+
 
 
 
