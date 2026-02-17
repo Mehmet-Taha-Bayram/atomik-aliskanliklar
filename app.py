@@ -59,6 +59,16 @@ if sayfa == "🏠 Bugünün Girişi":
         st.subheader("📝 Günlük Not")
         note = st.text_area("Not")
 
+        st.subheader("🌟 Memnun Olduğum 3 Şey")
+        memnun1 = st.text_input("1.", key="m1")
+        memnun2 = st.text_input("2.", key="m2")
+        memnun3 = st.text_input("3.", key="m3")
+
+        st.subheader("🚀 Daha İyi Yapabileceğim 3 Şey")
+        gelisim1 = st.text_input("1..", key="g1")
+        gelisim2 = st.text_input("2..", key="g2")
+        gelisim3 = st.text_input("3..", key="g3")
+
     if st.button("💾 Kaydet", use_container_width=True):
 
         toplam = len(st.session_state.habits)
@@ -76,7 +86,9 @@ if sayfa == "🏠 Bugünün Girişi":
             "iyi": sum(good_res.values()),
             "kotu": sum(bad_res.values()),
             "yuzde": yuzde,
-            "notlar": note
+            "notlar": note,
+            "memnun": [memnun1, memnun2, memnun3],
+            "gelisim": [gelisim1, gelisim2, gelisim3]
         }
 
         if mevcut_index is not None:
@@ -102,12 +114,10 @@ elif sayfa == "📅 Takvim & Analiz":
         df["tarih"] = pd.to_datetime(df["tarih"], format="%d/%m/%Y")
         df = df.sort_values("tarih")
 
-        # ---- ÖZET METRİKLER ----
         ortalama = round(df["yuzde"].mean(), 1)
         en_iyi = df.loc[df["yuzde"].idxmax()]
         en_kotu = df.loc[df["yuzde"].idxmin()]
 
-        # STREAK (%50 üstü)
         streak = 0
         for val in reversed(df["yuzde"].tolist()):
             if val >= 50:
@@ -123,11 +133,9 @@ elif sayfa == "📅 Takvim & Analiz":
 
         st.divider()
 
-        # ---- TABLO ----
         st.subheader("📋 Kayıt Tablosu")
         st.dataframe(df[["tarih", "yuzde"]], use_container_width=True)
 
-        # ---- SON 7 GÜN GRAFİĞİ ----
         son_hafta = df[df["tarih"] >= (df["tarih"].max() - timedelta(days=6))]
 
         st.subheader("📈 Son 7 Günlük Grafik")
@@ -136,7 +144,6 @@ elif sayfa == "📅 Takvim & Analiz":
             use_container_width=True
         )
 
-        # ---- ORTALAMA ÇİZGİSİ ----
         st.subheader("📊 Ortalama Çizgili Grafik")
         chart_df = df.set_index("tarih")[["yuzde"]]
         chart_df["ortalama"] = ortalama
@@ -144,7 +151,6 @@ elif sayfa == "📅 Takvim & Analiz":
 
         st.divider()
 
-        # ---- HEATMAP (Basit) ----
         st.subheader("🟩 Performans Yoğunluk Tablosu")
 
         heatmap_df = df.copy()
@@ -154,12 +160,23 @@ elif sayfa == "📅 Takvim & Analiz":
 
         st.divider()
 
-        # ---- DÜZENLE / SİL ----
         st.subheader("✏️ Kayıt Düzenle / Sil")
 
         for idx, entry in list(enumerate(st.session_state.history))[::-1]:
 
             with st.expander(f"{entry['tarih']} - %{entry['yuzde']}"):
+
+                st.write("🌟 Memnun Olduklarım:")
+                for m in entry.get("memnun", []):
+                    if m:
+                        st.write("-", m)
+
+                st.write("🚀 Gelişim Alanlarım:")
+                for g in entry.get("gelisim", []):
+                    if g:
+                        st.write("-", g)
+
+                st.divider()
 
                 yeni_yuzde = st.number_input(
                     "Başarı Yüzdesi",
