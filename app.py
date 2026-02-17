@@ -19,7 +19,7 @@ with st.sidebar:
     sayfa = st.radio("Gitmek istediğiniz sayfa:", 
                     ["🏠 Bugünün Girişi", "📅 Geçmiş Takvim", "⚙️ Alışkanlık Ayarları"])
     st.divider()
-    st.info("İpucu: Sol üstteki ok (>) işaretine basarak bu menüyü kapatıp açabilirsiniz.")
+   
 
 # --- SAYFA 1: BUGÜNÜN GİRİŞİ ---
 if sayfa == "🏠 Bugünün Girişi":
@@ -99,4 +99,5 @@ elif sayfa == "⚙️ Alışkanlık Ayarları":
         yeni_k = st.text_input("Yeni Bırakılacak:")
         if st.button("Ekle (Bırak)"):
             if yeni_k: st.session_state.bad_habits.append(yeni_k); st.rerun()
+
 
