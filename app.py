@@ -2,24 +2,24 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-# 1. Sayfa Konfigürasyonu
+# 1. Sayfa Ayarları
 st.set_page_config(page_title="Gelişim Günlüğü Pro", page_icon="📆", layout="wide")
 
-# 2. Veri Başlatma
-if 'history' not in st.session_state:
+# 2. Veri Yapısını Sabitleme (Hata Almamak İçin Şart)
+if 'history' not in st.session_state or isinstance(st.session_state.history, pd.DataFrame):
     st.session_state.history = []
 if 'habits' not in st.session_state:
     st.session_state.habits = ["📚 Kitap Okuma", "💪 Spor", "💧 Su İçmek"]
 if 'bad_habits' not in st.session_state:
     st.session_state.bad_habits = ["🚬 Sigara", "📱 Sosyal Medya"]
 
-# --- 3. YAN MENÜ (SIDEBAR - 3 ÇİZGİ MANTIĞI) ---
+# --- 3. YAN MENÜ (SIDEBAR) ---
 with st.sidebar:
     st.title("📌 Menü")
     sayfa = st.radio("Gitmek istediğiniz sayfa:", 
-                    ["🏠 Bugünün Girişi", "📅 Geçmiş Takvim", "⚙️ Alışkanlık Ayarları"])
+                    ["🏠 Bugünün Girişi", "📅 Takvim & Arşiv", "⚙️ Ayarlar"])
     st.divider()
-   
+    st.info("Sol üstteki (>) işaretinden menüyü yönetebilirsin.")
 
 # --- SAYFA 1: BUGÜNÜN GİRİŞİ ---
 if sayfa == "🏠 Bugünün Girişi":
@@ -29,11 +29,11 @@ if sayfa == "🏠 Bugünün Girişi":
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
-        st.subheader("✅ Alışkanlıklarını İşaretle")
-        good_results = {h: st.checkbox(h, key=f"g_{h}") for h in st.session_state.habits}
+        st.subheader("✅ Alışkanlık Takibi")
+        good_res = {h: st.checkbox(h, key=f"g_{h}") for h in st.session_state.habits}
         
-        st.subheader("🚫 Bırakmak İstediğin Şeyler")
-        bad_results = {bh: st.checkbox(f"Bugün yaptım: {bh}", key=f"b_{bh}") for bh in st.session_state.bad_habits}
+        st.subheader("🚫 Kaçınılacaklar")
+        bad_res = {bh: st.checkbox(f"Bugün yaptım: {bh}", key=f"b_{bh}") for bh in st.session_state.bad_habits}
 
     with col2:
         st.subheader("📝 Günlük Değerlendirme")
@@ -41,63 +41,55 @@ if sayfa == "🏠 Bugünün Girişi":
         m = [st.text_input(f"{i+1}.", key=f"m{i}") for i in range(3)]
         
         st.write("**💡 Daha iyi yapabileceğim 3 şey:**")
-        d = [st.text_input(f"{i+1}.", key=f"d{i}") for i in range(3)]
+        d = [st.text_input(f"{i+1}. ", key=f"d{i}") for i in range(3)]
         
-        note = st.text_area("🗒️ Günlük Ek Notlar")
+        note = st.text_area("🗒️ Günlük Ek Notlar", placeholder="Zihnin bugün nasıldı?")
 
     if st.button("💾 GÜNÜ SİSTEME KAYDET", use_container_width=True):
-        kayit = {
+        yeni_kayit = {
             "tarih": datetime.now().strftime("%d/%m/%Y"),
-            "iyi": sum(good_results.values()),
-            "kotu": sum(bad_results.values()),
-            "memnuniyet": m,
-            "gelisim": d,
+            "iyi": sum(good_res.values()),
+            "kotu": sum(bad_res.values()),
+            "memnuniyet": [x for x in m if x],
+            "gelisim": [x for x in d if x],
             "notlar": note
         }
-        st.session_state.history.append(kayit)
+        st.session_state.history.append(yeni_kayit)
         st.balloons()
-        st.success("Veriler kaydedildi! 'Geçmiş Takvim' sayfasından görebilirsin.")
+        st.success("Kaydedildi! Geçmiş Takvim sayfasına bakabilirsin.")
 
-# --- SAYFA 2: GEÇMİŞ TAKVİM & ARŞİV ---
-elif sayfa == "📅 Geçmiş Takvim":
-    st.title("📅 Kayıt Arşivi")
+# --- SAYFA 2: TAKVİM & ARŞİV ---
+elif sayfa == "📅 Takvim & Arşiv":
+    st.title("📅 Geçmiş Günlerin Değerlendirmesi")
     
     if len(st.session_state.history) > 0:
-        st.write("Aşağıdaki listeden geçmiş günleri inceleyebilirsin:")
         for entry in reversed(st.session_state.history):
-            # Pencere pencere (Expander) yapısı
-            with st.expander(f"📅 Kayıt Tarihi: {entry['tarih']}"):
+            with st.expander(f"📅 Tarih: {entry['tarih']}"):
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.write(f"📊 **Başarı:** {entry['iyi']}/{len(st.session_state.habits)} Alışkanlık")
-                    st.write(f"⚠️ **Kaçınılamayan:** {entry['kotu']} Kötü Alışkanlık")
+                    st.write(f"📊 **Başarı:** {entry['iyi']}/{len(st.session_state.habits)}")
+                    st.write(f"⚠️ **Yapılan Kötü:** {entry['kotu']}")
                 with c2:
-                    st.write("**🌟 Memnuniyet:** " + ", ".join(filter(None, entry['memnuniyet'])))
-                    st.write("**💡 Gelişim:** " + ", ".join(filter(None, entry['gelisim'])))
+                    st.write("**🌟 Memnuniyet:** " + ", ".join(entry['memnuniyet']))
+                    st.write("**💡 Gelişim:** " + ", ".join(entry['gelisim']))
                 if entry['notlar']:
                     st.info(f"**Not:** {entry['notlar']}")
     else:
-        st.warning("Henüz hiç kayıt yapmamışsın. İlk girişini 'Bugünün Girişi' sayfasından yapabilirsin.")
+        st.warning("Henüz kayıt bulunamadı.")
 
 # --- SAYFA 3: AYARLAR ---
-elif sayfa == "⚙️ Alışkanlık Ayarları":
+elif sayfa == "⚙️ Ayarlar":
     st.title("⚙️ Alışkanlık Yönetimi")
-    
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("✅ İyi Alışkanlık Listesi")
-        for h in st.session_state.habits:
-            st.write(f"- {h}")
-        yeni_i = st.text_input("Yeni İyi Alışkanlık:")
+        st.subheader("✅ İyi Listesi")
+        for h in st.session_state.habits: st.text(f"- {h}")
+        y_i = st.text_input("Yeni İyi Ekle:")
         if st.button("Ekle (İyi)"):
-            if yeni_i: st.session_state.habits.append(yeni_i); st.rerun()
-            
+            if y_i: st.session_state.habits.append(y_i); st.rerun()
     with c2:
-        st.subheader("🚫 Bırakılacak Liste")
-        for bh in st.session_state.bad_habits:
-            st.write(f"- {bh}")
-        yeni_k = st.text_input("Yeni Bırakılacak:")
-        if st.button("Ekle (Bırak)"):
-            if yeni_k: st.session_state.bad_habits.append(yeni_k); st.rerun()
-
-
+        st.subheader("🚫 Kötü Listesi")
+        for bh in st.session_state.bad_habits: st.text(f"- {bh}")
+        y_k = st.text_input("Yeni Kötü Ekle:")
+        if st.button("Ekle (Kötü)"):
+            if y_k: st.session_state.bad_habits.append(y_k); st.rerun()
