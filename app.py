@@ -74,20 +74,31 @@ if sayfa == "🏠 Bugünün Girişi":
         note = st.text_area("🗒️ Günlük Ek Notlar")
 
     # --------- KAYDET ----------
-    if st.button("💾 GÜNÜ SİSTEME KAYDET", use_container_width=True):
+  if st.button("💾 GÜNÜ SİSTEME KAYDET", use_container_width=True):
 
-        yeni_kayit = {
-            "tarih": datetime.now().strftime("%d/%m/%Y"),
-            "iyi": sum(good_res.values()),
-            "kotu": sum(bad_res.values()),
-            "memnuniyet": [x for x in memnun if x],
-            "gelisim": [x for x in gelisim if x],
-            "notlar": note
-        }
+    bugun = datetime.now().strftime("%d/%m/%Y")
 
+    # Aynı tarih var mı kontrol
+    mevcut_kayit = next((i for i, x in enumerate(st.session_state.history) if x["tarih"] == bugun), None)
+
+    yeni_kayit = {
+        "tarih": bugun,
+        "iyi": sum(good_res.values()),
+        "kotu": sum(bad_res.values()),
+        "memnuniyet": [x for x in memnun if x],
+        "gelisim": [x for x in gelisim if x],
+        "notlar": note
+    }
+
+    if mevcut_kayit is not None:
+        st.session_state.history[mevcut_kayit] = yeni_kayit
+        st.info("Bugünkü kayıt güncellendi.")
+    else:
         st.session_state.history.append(yeni_kayit)
+        st.success("Yeni kayıt oluşturuldu ✔")
 
-        st.success("Kaydedildi ✔")
+    st.rerun()
+
 
 
 # =================================================
@@ -99,22 +110,53 @@ elif sayfa == "📅 Takvim & Arşiv":
 
     if len(st.session_state.history) > 0:
 
-        for entry in reversed(st.session_state.history):
+        for idx, entry in list(enumerate(st.session_state.history))[::-1]:
 
             with st.expander(f"📅 Tarih: {entry['tarih']}"):
 
                 c1, c2 = st.columns(2)
 
                 with c1:
-                    st.write(f"📊 **Başarı:** {entry['iyi']}/{len(st.session_state.habits)}")
-                    st.write(f"⚠️ **Yapılan Kötü:** {entry['kotu']}")
+                    yeni_iyi = st.number_input(
+                        "Başarılı Alışkanlık",
+                        min_value=0,
+                        max_value=len(st.session_state.habits),
+                        value=entry["iyi"],
+                        key=f"edit_good_{idx}"
+                    )
+
+                    yeni_kotu = st.number_input(
+                        "Yapılan Kötü",
+                        min_value=0,
+                        max_value=len(st.session_state.bad_habits),
+                        value=entry["kotu"],
+                        key=f"edit_bad_{idx}"
+                    )
 
                 with c2:
-                    st.write("**🌟 Memnuniyet:** " + ", ".join(entry['memnuniyet']))
-                    st.write("**💡 Gelişim:** " + ", ".join(entry['gelisim']))
+                    yeni_not = st.text_area(
+                        "Notlar",
+                        value=entry["notlar"],
+                        key=f"edit_note_{idx}"
+                    )
 
-                if entry["notlar"]:
-                    st.info(f"Not: {entry['notlar']}")
+                col_save, col_delete = st.columns(2)
+
+                # Kaydet butonu
+                with col_save:
+                    if st.button("💾 Güncelle", key=f"save_{idx}"):
+                        st.session_state.history[idx]["iyi"] = yeni_iyi
+                        st.session_state.history[idx]["kotu"] = yeni_kotu
+                        st.session_state.history[idx]["notlar"] = yeni_not
+                        st.success("Güncellendi ✔")
+                        st.rerun()
+
+                # Sil butonu
+                with col_delete:
+                    if st.button("🗑️ Sil", key=f"delete_{idx}"):
+                        st.session_state.history.pop(idx)
+                        st.warning("Kayıt silindi.")
+                        st.rerun()
 
     else:
         st.warning("Henüz kayıt yok.")
@@ -166,3 +208,4 @@ elif sayfa == "⚙️ Ayarlar":
             if yeni_kotu.strip() != "":
                 st.session_state.bad_habits.append(yeni_kotu.strip())
                 st.rerun()
+
