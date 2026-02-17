@@ -1,10 +1,6 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from collections import Counter
 
 # -------------------------------------------------
 # SAYFA AYARI
@@ -14,24 +10,6 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
-
-# -------------------------------------------------
-# PREMIUM CSS TASARIM
-# -------------------------------------------------
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-    color:white;
-}
-div[data-testid="metric-container"] {
-    background: rgba(255,255,255,0.08);
-    padding:15px;
-    border-radius:15px;
-    backdrop-filter: blur(8px);
-}
-</style>
-""", unsafe_allow_html=True)
 
 # -------------------------------------------------
 # SESSION STATE
@@ -60,8 +38,7 @@ with st.sidebar:
 # =================================================
 if sayfa == "🏠 Bugünün Girişi":
 
-    st.markdown("<h1 style='text-align:center;'>🚀 Günlük Giriş</h1>", unsafe_allow_html=True)
-
+    st.title("🚀 Günlük Giriş")
     bugun_str = datetime.now().strftime("%d/%m/%Y")
     st.write(f"Tarih: {bugun_str}")
 
@@ -95,7 +72,9 @@ if sayfa == "🏠 Bugünün Girişi":
     if st.button("💾 Kaydet", use_container_width=True):
 
         toplam = len(st.session_state.habits)
-        yuzde = round((sum(good_res.values()) / toplam) * 100, 1) if toplam > 0 else 0
+        yuzde = 0
+        if toplam > 0:
+            yuzde = round((sum(good_res.values()) / toplam) * 100, 1)
 
         mevcut_index = next(
             (i for i, x in enumerate(st.session_state.history) if x["tarih"] == bugun_str),
@@ -119,8 +98,6 @@ if sayfa == "🏠 Bugünün Girişi":
             st.session_state.history.append(yeni)
             st.success("Yeni kayıt oluşturuldu.")
 
-        st.progress(yuzde / 100)
-
         st.rerun()
 
 # =================================================
@@ -128,7 +105,7 @@ if sayfa == "🏠 Bugünün Girişi":
 # =================================================
 elif sayfa == "📅 Takvim & Analiz":
 
-    st.markdown("<h1 style='text-align:center;'>📊 Performans Analizi</h1>", unsafe_allow_html=True)
+    st.title("📊 Performans Analizi")
 
     if len(st.session_state.history) == 0:
         st.warning("Henüz veri yok.")
@@ -141,10 +118,6 @@ elif sayfa == "📅 Takvim & Analiz":
         en_iyi = df.loc[df["yuzde"].idxmax()]
         en_kotu = df.loc[df["yuzde"].idxmin()]
 
-        # Trend hesaplama
-        x = np.arange(len(df))
-        slope = np.polyfit(x, df["yuzde"], 1)[0]
-
         streak = 0
         for val in reversed(df["yuzde"].tolist()):
             if val >= 50:
@@ -155,54 +128,90 @@ elif sayfa == "📅 Takvim & Analiz":
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Genel Ortalama", f"%{ortalama}")
         c2.metric("En İyi Gün", f"%{en_iyi['yuzde']}")
-        c3.metric("Trend Eğimi", f"{round(slope,2)}")
-        c4.metric("🔥 Streak", f"{streak} gün")
+        c3.metric("En Kötü Gün", f"%{en_kotu['yuzde']}")
+        c4.metric("🔥 Streak (50%+)", f"{streak} gün")
 
         st.divider()
 
-        # Plotly Grafik
-        fig = px.line(df, x="tarih", y="yuzde", markers=True)
-        fig.update_layout(template="plotly_dark")
-        st.plotly_chart(fig, use_container_width=True)
+        st.subheader("📋 Kayıt Tablosu")
+        st.dataframe(df[["tarih", "yuzde"]], use_container_width=True)
 
-        # Radar Chart
-        toplam_iyi = df["iyi"].sum()
-        toplam_kotu = df["kotu"].sum()
+        son_hafta = df[df["tarih"] >= (df["tarih"].max() - timedelta(days=6))]
 
-        radar = go.Figure()
-        radar.add_trace(go.Scatterpolar(
-            r=[toplam_iyi, toplam_kotu],
-            theta=["İyi", "Kötü"],
-            fill='toself'
-        ))
-        radar.update_layout(polar=dict(radialaxis=dict(visible=True)))
-        st.plotly_chart(radar, use_container_width=True)
+        st.subheader("📈 Son 7 Günlük Grafik")
+        st.line_chart(
+            son_hafta.set_index("tarih")["yuzde"],
+            use_container_width=True
+        )
 
-        # Haftalık Heatmap
-        df["hafta_gun"] = df["tarih"].dt.day_name()
-        pivot = df.pivot_table(index="hafta_gun", values="yuzde", aggfunc="mean")
-        heat = px.imshow(pivot, text_auto=True, aspect="auto", color_continuous_scale="Viridis")
-        st.plotly_chart(heat, use_container_width=True)
+        st.subheader("📊 Ortalama Çizgili Grafik")
+        chart_df = df.set_index("tarih")[["yuzde"]]
+        chart_df["ortalama"] = ortalama
+        st.line_chart(chart_df, use_container_width=True)
 
-        # Motivasyon üretimi
-        if slope > 0:
-            st.success("Yukarı yönlü trenddesin. Momentum sende.")
-        elif slope < 0:
-            st.warning("Düşüş var. Küçük alışkanlık reseti zamanı.")
-        else:
-            st.info("Stabil gidiyorsun. Disiplin korunuyor.")
+        st.divider()
+
+        st.subheader("🟩 Performans Yoğunluk Tablosu")
+
+        heatmap_df = df.copy()
+        heatmap_df["gün"] = heatmap_df["tarih"].dt.strftime("%d %b")
+        heatmap_df = heatmap_df[["gün", "yuzde"]]
+        st.dataframe(heatmap_df, use_container_width=True)
+
+        st.divider()
+
+        st.subheader("✏️ Kayıt Düzenle / Sil")
+
+        for idx, entry in list(enumerate(st.session_state.history))[::-1]:
+
+            with st.expander(f"{entry['tarih']} - %{entry['yuzde']}"):
+
+                st.write("🌟 Memnun Olduklarım:")
+                for m in entry.get("memnun", []):
+                    if m:
+                        st.write("-", m)
+
+                st.write("🚀 Gelişim Alanlarım:")
+                for g in entry.get("gelisim", []):
+                    if g:
+                        st.write("-", g)
+
+                st.divider()
+
+                yeni_yuzde = st.number_input(
+                    "Başarı Yüzdesi",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=float(entry["yuzde"]),
+                    key=f"edit_{idx}"
+                )
+
+                col_s, col_d = st.columns(2)
+
+                with col_s:
+                    if st.button("Güncelle", key=f"save_{idx}"):
+                        st.session_state.history[idx]["yuzde"] = yeni_yuzde
+                        st.success("Güncellendi.")
+                        st.rerun()
+
+                with col_d:
+                    if st.button("Sil", key=f"del_{idx}"):
+                        st.session_state.history.pop(idx)
+                        st.warning("Silindi.")
+                        st.rerun()
 
 # =================================================
 # AYARLAR
 # =================================================
 elif sayfa == "⚙️ Ayarlar":
 
-    st.markdown("<h1 style='text-align:center;'>⚙️ Alışkanlık Yönetimi</h1>", unsafe_allow_html=True)
+    st.title("⚙️ Alışkanlık Yönetimi")
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("✅ İyi Alışkanlıklar")
+
         for i, h in enumerate(st.session_state.habits):
             c1, c2 = st.columns([4,1])
             with c1:
@@ -220,6 +229,7 @@ elif sayfa == "⚙️ Ayarlar":
 
     with col2:
         st.subheader("🚫 Kötü Alışkanlıklar")
+
         for i, bh in enumerate(st.session_state.bad_habits):
             c1, c2 = st.columns([4,1])
             with c1:
