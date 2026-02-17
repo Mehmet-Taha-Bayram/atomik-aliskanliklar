@@ -60,9 +60,9 @@ if sayfa == "🏠 Bugünün Girişi":
         note = st.text_area("Not")
 
         st.subheader("🌟 Memnun Olduğum 3 Şey")
-        memnun1 = st.text_input("1.", key="m1")
-        memnun2 = st.text_input("2.", key="m2")
-        memnun3 = st.text_input("3.", key="m3")
+        memnun1 = st.text_input("1..", key="m1")
+        memnun2 = st.text_input("2..", key="m2")
+        memnun3 = st.text_input("3..", key="m3")
 
         st.subheader("🚀 Daha İyi Yapabileceğim 3 Şey")
         gelisim1 = st.text_input("1..", key="g1")
@@ -244,3 +244,4 @@ elif sayfa == "⚙️ Ayarlar":
             if yeni2.strip():
                 st.session_state.bad_habits.append(yeni2.strip())
                 st.rerun()
+
