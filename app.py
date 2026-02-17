@@ -5,17 +5,7 @@ from datetime import datetime
 # Sayfa Ayarları
 st.set_page_config(page_title="Gelişim Günlüğü", page_icon="📈", layout="wide")
 
-# --- STİL ---
-st.markdown("""
-    <style>
-    .main { background-color: #f8f9fa; }
-    .stTextArea textarea { border-radius: 10px; }
-    .stTextInput input { border-radius: 10px; }
-    .habit-box { background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- VERİ SİSTEMİ ---
+# --- VERİ SİSTEMİ (HATASIZ BAŞLATMA) ---
 if 'history' not in st.session_state:
     st.session_state.history = []
 
@@ -27,7 +17,7 @@ if 'bad_habits' not in st.session_state:
 
 # --- ANA BAŞLIK ---
 st.title("📈 Kişisel Gelişim ve Alışkanlık Günlüğü")
-st.write(f"📅 **{datetime.now().strftime('%d %B %Y, %A')}**")
+st.write(f"📅 **{datetime.now().strftime('%d %B %Y')}**")
 
 col1, col2 = st.columns([1, 1], gap="large")
 
@@ -37,7 +27,7 @@ with col1:
     for h in st.session_state.habits:
         good_results[h] = st.checkbox(h, key=f"good_{h}")
 
-    st.write("---")
+    st.divider()
     st.subheader("🚫 Bırakmak İstediğim Alışkanlıklar")
     st.info("Bu kutucukları işaretlemediysen başarılısın demektir!")
     bad_results = {}
@@ -45,50 +35,65 @@ with col1:
         bad_results[bh] = st.checkbox(f"Bugün bunu yaptım: {bh}", key=f"bad_{bh}")
 
 with col2:
-    st.subheader("📝 Günlük Notlar & Değerlendirme")
+    st.subheader("📝 Günlük Değerlendirme")
     
     st.write("**🌟 Bugün memnun olduğum 3 şey:**")
-    m1 = st.text_input("1.", key="m1", placeholder="Örn: Erken uyandım")
+    m1 = st.text_input("1.", key="m1")
     m2 = st.text_input("2.", key="m2")
     m3 = st.text_input("3.", key="m3")
     
     st.write("**💡 Daha iyi yapabileceğim 3 şey:**")
-    d1 = st.text_input("1.", key="d1", placeholder="Örn: Tatlı yemeseydim iyiydi")
-    d2 = st.text_input("2.", key="d2")
-    d3 = st.text_input("3.", key="d3")
+    d1 = st.text_input("d1", key="d1", label_visibility="collapsed")
+    d2 = st.text_input("d2", key="d2", label_visibility="collapsed")
+    d3 = st.text_input("d3", key="d3", label_visibility="collapsed")
     
     extra_note = st.text_area("🗒️ Ekstra Notlar", placeholder="Bugün nasıl geçti?")
 
-# --- KAYDETME ---
+# --- KAYDETME BUTONU ---
 st.write("---")
 if st.button("🚀 GÜNÜ SİSTEME KAYDET", use_container_width=True):
-    entry = {
-        "tarih": datetime.now().strftime("%Y-%m-%d"),
-        "iyi_aliskanliklar": sum(good_results.values()),
-        "kotu_aliskanliklar": sum(bad_results.values()),
-        "notlar": extra_note,
-        "memnuniyet": [m1, m2, m3],
-        "gelisim": [d1, d2, d3]
+    # Yeni kaydı oluştur
+    yeni_kayit = {
+        "tarih": datetime.now().strftime("%d/%m/%Y"),
+        "iyi": sum(good_results.values()),
+        "kotu": sum(bad_results.values()),
+        "memnun": [m1, m2, m3],
+        "gelisim": [d1, d2, d3],
+        "not": extra_note
     }
-    st.session_state.history.append(entry)
+    st.session_state.history.append(yeni_kayit)
     st.balloons()
-    st.success("Harika! Günlük verilerin kaydedildi.")
+    st.success("Veriler başarıyla kaydedildi!")
 
-# --- GEÇMİŞ VE AYARLAR ---
+# --- ALT PANEL (GEÇMİŞ VE AYARLAR) ---
 st.divider()
 tab1, tab2 = st.tabs(["📊 Geçmiş Kayıtlar", "⚙️ Alışkanlık Yönetimi"])
 
 with tab1:
-    if st.session_state.history:
-        for item in reversed(st.session_state.history):
-            with st.expander(f"📅 Kayıt: {item['tarih']}"):
-                c_a, c_b = st.columns(2)
-                with c_a:
-                    st.write(f"✅ Kazanılan: {item['iyi_aliskanliklar']}/{len(st.session_state.habits)}")
-                    st.write(f"🚫 Kaçınılan Kötü Alışkanlıklar: {len(st.session_state.bad_habits) - item['kotu_aliskanliklar']}")
-                with c_b:
-                    st.write("**🌟 Memnuniyet:** " + ", ".join([x for x in item['memnuniyet'] if x]))
-                    st
+    if len(st.session_state.history) > 0:
+        for entry in reversed(st.session_state.history):
+            with st.expander(f"📅 Tarih: {entry['tarih']}"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write(f"✅ İyi Alışkanlıklar: {entry['iyi']}")
+                    st.write(f"🚫 Kötü Alışkanlıklar: {entry['kotu']}")
+                with c2:
+                    st.write(f"**🌟 Memnuniyet:** {', '.join(filter(None, entry['memnun']))}")
+                    st.write(f"**💡 Gelişim:** {', '.join(filter(None, entry['gelisim']))}")
+                if entry['not']:
+                    st.info(f"**Not:** {entry['not']}")
+    else:
+        st.write("Henüz bir kayıt yok.")
+
+with tab2:
+    c_a, c_b = st.columns(2)
+    with c_a:
+        yeni_iyi = st.text_input("Yeni İyi Alışkanlık:")
+        if st.button("Ekle (İyi)"):
+            if yeni_iyi: st.session_state.habits.append(yeni_iyi); st.rerun()
+    with c_b:
+        yeni_kotu = st.text_input("Yeni K
+
 
 
 
